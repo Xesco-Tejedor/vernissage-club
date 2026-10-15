@@ -67,7 +67,6 @@ function overlaps(a,b){if(!a.d||a.d!==b.d)return false;const as=toMin(a.h),bs=to
 function overlapPairs(evs){const r=[];for(let i=0;i<evs.length;i++)for(let j=i+1;j<evs.length;j++)if(overlaps(evs[i],evs[j]))r.push([i,j]);return r}
 function toast(t){const e=document.createElement("div");e.className="toast";e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),2200)}
 async function copy(t){try{await navigator.clipboard.writeText(t);toast("Copiado")}catch(e){const a=document.createElement("textarea");a.value=t;document.body.appendChild(a);a.select();try{document.execCommand("copy");toast("Copiado")}catch(_){toast("No se pudo copiar")}a.remove()}}
-const wa=t=>"https://wa.me/?text="+encodeURIComponent(t);
 async function share(t,url){if(navigator.share){try{await navigator.share({text:t});return}catch(e){if(e&&e.name==="AbortError")return}}copy(t)}
 const evLine=(e,i)=>`${i!=null?(i+1)+". ":""}${e.n}${e.s?" ("+e.s+")":""} - ${fmtD(e.d)}${e.h?" "+e.h+(e.f?"-"+e.f:""):""}`;
 
@@ -163,7 +162,7 @@ function voteView(p){
   <label>Tu nombre</label><input id="nm" value="${esc(my.name)}" placeholder="Ana">
   <div id="opts"></div>
   <div class="card"><h3>Tu voto</h3><pre id="msg"></pre>
-  <div class="row"><button class="primary" id="cp">Copiar mi voto</button><a class="btn" id="wa" target="_blank" rel="noopener">Elegir chat en WhatsApp</a><button id="sh">Compartir...</button></div>
+  <div class="row"><button class="primary" id="cp">Copiar mi voto</button><button id="sh">Compartir...</button></div>
   <p class="mute">Pega el mensaje en el grupo. Quien creó el plan lo recoge en su app. Esta página no envía nada por sí sola.</p></div>
   <div class="row"><button class="ghost" id="org">Soy quien creó el plan: abrir mi versión</button></div>`;
   const opts=$("#opts");
@@ -174,7 +173,7 @@ function voteView(p){
   const msg=()=>{my.name=$("#nm").value.replace(/[~\n]/g," ").trim();LS.set(key,my);
     const w={v:"voy",q:"quizá",p:"paso","-":"sin voto"};
     const t=`Mi voto en «${p.t}»${my.name?" ("+my.name+")":""}:\n`+p.e.map((e,i)=>`${i+1}. ${e.n}: ${w[my.v[i]]}`).join("\n")+`\nVC1~${p.id}~${my.name||"?"}~${my.v.join("")}`;
-    $("#msg").textContent=t;$("#wa").href=wa(t);return t};
+    $("#msg").textContent=t;return t};
   draw();msg();$("#nm").oninput=msg;
   $("#cp").onclick=()=>{if(!my.name)return toast("Pon tu nombre primero");copy(msg())};
   $("#sh").onclick=()=>{if(!my.name)return toast("Pon tu nombre primero");share(msg())};
@@ -202,7 +201,7 @@ function orgView(id){
   $("#app").innerHTML=`
   <h2>${esc(p.t)}</h2><p class="mute">${p.e.length} aperturas · ${names.length} voto${names.length===1?"":"s"} recibido${names.length===1?"":"s"}</p>
   <div class="card"><h3>1. Comparte el plan</h3><pre>${esc(invite)}</pre>
-  <div class="row"><button class="primary" id="cpI">Copiar invitación</button><a class="btn" target="_blank" rel="noopener" href="${esc(wa(invite))}">Elegir chat en WhatsApp</a><button id="shI">Compartir...</button></div>
+  <div class="row"><button class="primary" id="cpI">Copiar invitación</button><button id="shI">Compartir...</button><button id="cpL">Copiar solo el enlace</button></div>
   <p class="mute">El enlace lleva el plan dentro. Si lo editas, vuelve a compartir el enlace nuevo.</p></div>
   <div class="card"><h3>2. Recoge los votos</h3>
   <p class="mute">Cuando tus amigos peguen su voto en el grupo, copia esos mensajes (varios a la vez vale) y pégalos aquí. Se lee la línea que empieza por VC1.</p>
@@ -219,9 +218,9 @@ function orgView(id){
   <div class="card"><h3>4. Plan final</h3>
   ${chosenPairs.length?`<div class="warn">Hay aperturas elegidas que solapan en horario. Revisa si quieres pasar por las dos de forma breve.</div>`:(chosen.length?`<div class="ok">Sin solapamientos entre las aperturas elegidas.</div>`:"")}
   <pre>${esc(finalTxt)}</pre>
-  <div class="row"><button class="primary" id="cpF">Copiar plan final</button><a class="btn" target="_blank" rel="noopener" href="${esc(wa(finalTxt))}">Elegir chat en WhatsApp</a><button id="ics">Descargar calendario (.ics)</button></div></div>
+  <div class="row"><button class="primary" id="cpF">Copiar plan final</button><button id="shF">Compartir...</button><button id="ics">Descargar calendario (.ics)</button></div></div>
   <div class="row"><button class="ghost danger" id="del">Borrar este plan</button></div>`;
-  $("#cpI").onclick=()=>copy(invite);$("#shI").onclick=()=>share(invite);$("#cpF").onclick=()=>copy(finalTxt);
+  $("#cpI").onclick=()=>copy(invite);$("#shI").onclick=()=>share(invite);$("#cpL").onclick=()=>copy(link);$("#cpF").onclick=()=>copy(finalTxt);$("#shF").onclick=()=>share(finalTxt);
   $("#addV").onclick=()=>{const r=parseVotes($("#paste").value,p);Object.assign(rec.votes,r.out);if(r.ok){delete rec.sel}save();
     if(!r.ok&&!r.other&&!r.bad){$("#pmsg").innerHTML='<div class="warn">No encuentro ningún voto en ese texto. Copia el mensaje completo, incluida la línea VC1.</div>';return}
     orgView(id);const msg=[];if(r.ok)msg.push(r.ok+" voto(s) añadido(s)");if(r.other)msg.push(r.other+" de otro plan, ignorado(s)");if(r.bad)msg.push(r.bad+" no coincide(n) con el número de aperturas, ignorado(s)");toast(msg.join(". "))};
