@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#161215">
+<title>Vernissage Club - decide el plan de inauguraciones con tus amigos</title>
+<meta name="description" content="Propón 2-5 inauguraciones, comparte un enlace, tus amigos votan y la app te propone un recorrido sin solapamientos. Todo en el navegador.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#161215;--bg2:#1f1a1d;--bg3:#2a2327;--amber:#ffb800;--text:#f6efe6;--mute:#b3a79b;--cyan:#5fd4e0;--green:#7ddc8a;--red:#ff7a7a;--line:#3a3135}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 "Space Grotesk",system-ui,sans-serif}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5}
+header h1{font-size:18px;margin:0;color:var(--amber);letter-spacing:.3px;cursor:pointer}
+main{max-width:720px;margin:0 auto;padding:16px 16px 80px}
+h2{font-size:22px;margin:8px 0 4px}h3{font-size:17px;margin:0 0 6px}
+p{margin:6px 0}.mute{color:var(--mute);font-size:14px}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:14px;margin:12px 0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button,.btn{font:inherit;border:1px solid var(--line);background:var(--bg3);color:var(--text);border-radius:10px;padding:10px 14px;cursor:pointer;min-height:44px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+button.primary{background:var(--amber);color:#161215;border-color:var(--amber);font-weight:700}
+button.ghost{background:transparent}button.small{min-height:36px;padding:6px 10px;font-size:14px}
+button.danger{color:var(--red)}
+input,textarea{font:inherit;width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px;min-height:44px}
+input:focus,textarea:focus,button:focus-visible{outline:2px solid var(--amber);outline-offset:1px}
+label{display:block;font-size:13px;color:var(--mute);margin:8px 0 2px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.tag{display:inline-block;font-size:12px;border:1px solid var(--line);border-radius:99px;padding:1px 8px;color:var(--mute)}
+.warn{border-left:4px solid var(--amber);background:#2a2216;padding:8px 10px;border-radius:6px;margin:8px 0;font-size:14px}
+.ok{border-left:4px solid var(--green);background:#16251a;padding:8px 10px;border-radius:6px;margin:8px 0;font-size:14px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.seg button.on-v{background:var(--green);color:#10200f;border-color:var(--green);font-weight:700}
+.seg button.on-q{background:var(--amber);color:#161215;border-color:var(--amber);font-weight:700}
+.seg button.on-p{background:#4a3b3f;color:var(--red);border-color:var(--red);font-weight:700}
+.bar{height:8px;border-radius:4px;background:var(--bg3);overflow:hidden;display:flex;margin-top:6px}
+.bar i{display:block;height:100%}
+pre{white-space:pre-wrap;word-break:break-word;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;font:13px/1.45 ui-monospace,monospace;margin:8px 0}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20}
+.modal>div{background:var(--bg2);border:1px solid var(--amber);border-radius:14px;max-width:520px;width:100%;max-height:90vh;overflow:auto;padding:18px}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--amber);color:#161215;padding:10px 16px;border-radius:99px;font-weight:700;z-index:30}
+.hidden{display:none}
+a{color:var(--cyan)}
+@media(max-width:480px){.grid3{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<header><h1 id="home" title="Inicio">Vernissage Club</h1><button class="ghost small" id="guideBtn">? Guía</button></header>
+<main id="app"></main>
+<div id="modal"></div>
+<script>
+"use strict";
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const LS={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const rid=()=>Math.random().toString(36).slice(2,8);
+const b64e=o=>{const b=new TextEncoder().encode(JSON.stringify(o));let s="";b.forEach(x=>s+=String.fromCharCode(x));return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"")};
+const b64d=t=>{t=t.replace(/-/g,"+").replace(/_/g,"/");while(t.length%4)t+="=";const s=atob(t);const b=Uint8Array.from(s,c=>c.charCodeAt(0));return JSON.parse(new TextDecoder().decode(b))};
+const BASE=location.origin+location.pathname;
+const linkFor=p=>BASE+"#p="+b64e(p);
+const fmtD=d=>{if(!d)return"";const x=new Date(d+"T12:00");return x.toLocaleDateString("es-ES",{weekday:"short",day:"numeric",month:"short"})};
+const toMin=h=>{if(!h)return null;const[a,b]=h.split(":").map(Number);return a*60+b};
+const endMin=e=>{const s=toMin(e.h);if(s==null)return null;const f=toMin(e.f);return f!=null&&f>s?f:s+90};
+function overlaps(a,b){if(!a.d||a.d!==b.d)return false;const as=toMin(a.h),bs=toMin(b.h);if(as==null||bs==null)return false;return as<endMin(b)&&bs<endMin(a)}
+function overlapPairs(evs){const r=[];for(let i=0;i<evs.length;i++)for(let j=i+1;j<evs.length;j++)if(overlaps(evs[i],evs[j]))r.push([i,j]);return r}
+function toast(t){const e=document.createElement("div");e.className="toast";e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),2200)}
+async function copy(t){try{await navigator.clipboard.writeText(t);toast("Copiado")}catch(e){const a=document.createElement("textarea");a.value=t;document.body.appendChild(a);a.select();try{document.execCommand("copy");toast("Copiado")}catch(_){toast("No se pudo copiar")}a.remove()}}
+const wa=t=>"https://wa.me/?text="+encodeURIComponent(t);
+async function share(t,url){if(navigator.share){try{await navigator.share({text:t});return}catch(e){if(e&&e.name==="AbortError")return}}copy(t)}
+const evLine=(e,i)=>`${i!=null?(i+1)+". ":""}${e.n}${e.s?" ("+e.s+")":""} - ${fmtD(e.d)}${e.h?" "+e.h+(e.f?"-"+e.f:""):""}`;
+
+/* ---------- state ---------- */
+let plans=LS.get("vc.plans",{});
+const save=()=>LS.set("vc.plans",plans);
+let draft=null;
+
+/* ---------- routing ---------- */
+function route(){
+  const h=location.hash;
+  if(h.startsWith("#p=")){try{const p=b64d(h.slice(3));return voteView(p)}catch(e){$("#app").innerHTML='<div class="card"><h2>Enlace no válido</h2><p class="mute">El enlace parece cortado. Pídelo de nuevo a quien lo creó.</p><button id="toHome">Ir al inicio</button></div>';$("#toHome").onclick=()=>{location.hash="";};return}}
+  if(h.startsWith("#plan=")&&plans[h.slice(6)])return orgView(h.slice(6));
+  if(h==="#nuevo")return editView();
+  homeView();
+}
+window.addEventListener("hashchange",route);
+$("#home").onclick=()=>{location.hash="";if(!location.hash)route()};
+
+/* ---------- home ---------- */
+function sample(){
+  const d=new Date();const add=(n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x.toISOString().slice(0,10)};
+  const dow=(d.getDay()+7-4)%7;const thu=add(dow===0?7:7-dow);
+  return{id:rid(),t:"Jueves de inauguraciones (EJEMPLO)",o:"Tú",m:{p:"Bar de la esquina (ficticio)",h:"18:30"},e:[
+    {n:"Galería Ejemplo A",s:"Poblenou",d:thu,h:"19:00",f:"21:00"},
+    {n:"Espacio Ejemplo B",s:"Poblenou",d:thu,h:"20:00",f:"22:00"},
+    {n:"Sala Ejemplo C",s:"Gràcia",d:thu,h:"21:30",f:""},
+    {n:"Taller Ejemplo D",s:"L'Hospitalet",d:thu,h:"18:00",f:"19:30"}]};
+}
+function homeView(){
+  const list=Object.values(plans).sort((a,b)=>(b.at||0)-(a.at||0));
+  $("#app").innerHTML=`
+  <h2>¿Qué inauguraciones vamos?</h2>
+  <p class="mute">Propón entre 2 y 5 aperturas, comparte un enlace al grupo, tus amigos votan y la app te propone un recorrido sin solapamientos. Sin cuentas, sin servidor: todo queda en tu navegador.</p>
+  <div class="row"><button class="primary" id="nuevo">+ Nuevo plan</button><button id="ej">Cargar ejemplo ficticio</button></div>
+  ${list.length?`<h3 style="margin-top:20px">Mis planes</h3>`+list.map(x=>`<div class="card"><div class="row" style="justify-content:space-between"><div><b>${esc(x.plan.t)}</b><div class="mute">${x.plan.e.length} aperturas · ${Object.keys(x.votes||{}).length} votos recibidos</div></div><div class="row"><button class="small" data-open="${x.plan.id}">Abrir</button><button class="small danger" data-del="${x.plan.id}">Borrar</button></div></div></div>`).join(""):`<div class="card mute">Aún no tienes planes. Prueba el ejemplo ficticio para ver cómo funciona.</div>`}
+  <div class="card mute"><b>Importante:</b> los votos no se sincronizan solos. Cada amigo te pasa su voto por el grupo (un mensaje corto que se copia con un botón) y tú lo pegas aquí. Así no hace falta ningún servidor.</div>`;
+  $("#nuevo").onclick=()=>{draft=null;location.hash="#nuevo"};
+  $("#ej").onclick=()=>{const p=sample();plans[p.id]={plan:p,votes:{},at:Date.now()};save();location.hash="#plan="+p.id};
+  document.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>location.hash="#plan="+b.dataset.open);
+  document.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{if(confirm("¿Borrar este plan y sus votos de este navegador?")){delete plans[b.dataset.del];save();homeView()}});
+}
+
+/* ---------- edit ---------- */
+function blankEv(){return{n:"",s:"",d:"",h:"",f:"",u:""}}
+function editView(){
+  if(!draft)draft={id:rid(),t:"",o:"",m:{p:"",h:""},e:[blankEv(),blankEv(),blankEv()]};
+  const p=draft;
+  $("#app").innerHTML=`
+  <h2>Nuevo plan</h2>
+  <div class="card"><label>Nombre del plan</label><input id="t" placeholder="Jueves de inauguraciones" value="${esc(p.t)}">
+  <label>Tu nombre (el que verán tus amigos)</label><input id="o" value="${esc(p.o)}">
+  <div class="grid2"><div><label>Quedada previa: lugar (opcional)</label><input id="mp" value="${esc(p.m.p)}"></div><div><label>Hora</label><input id="mh" type="time" value="${esc(p.m.h)}"></div></div></div>
+  <h3>Aperturas (2 a 5)</h3>
+  <div id="evs"></div>
+  <div class="row"><button id="addEv" ${p.e.length>=5?"disabled":""}>+ Añadir apertura</button></div>
+  <div id="warns"></div>
+  <div class="row" style="margin-top:14px"><button class="primary" id="done">Crear plan y enlace</button><button class="ghost" id="cancel">Cancelar</button></div>`;
+  const evs=$("#evs");
+  evs.innerHTML=p.e.map((e,i)=>`<div class="card" data-i="${i}"><div class="row" style="justify-content:space-between"><b>Apertura ${i+1}</b>${p.e.length>2?`<button class="small danger" data-rm="${i}">Quitar</button>`:""}</div>
+   <label>Nombre de la exposición o galería</label><input data-k="n" value="${esc(e.n)}">
+   <div class="grid2"><div><label>Espacio o barrio</label><input data-k="s" value="${esc(e.s)}" placeholder="Poblenou"></div><div><label>Día</label><input data-k="d" type="date" value="${esc(e.d)}"></div></div>
+   <div class="grid2"><div><label>Empieza</label><input data-k="h" type="time" value="${esc(e.h)}"></div><div><label>Termina (opcional)</label><input data-k="f" type="time" value="${esc(e.f)}"></div></div>
+   <label>Enlace (Instagram, web...) opcional</label><input data-k="u" inputmode="url" value="${esc(e.u)}"></div>`).join("");
+  const sync=()=>{p.t=$("#t").value;p.o=$("#o").value;p.m.p=$("#mp").value;p.m.h=$("#mh").value;
+    evs.querySelectorAll(".card").forEach(c=>{const i=+c.dataset.i;c.querySelectorAll("[data-k]").forEach(inp=>p.e[i][inp.dataset.k]=inp.value)});
+    const pairs=overlapPairs(p.e.filter(e=>e.n&&e.d&&e.h));
+    const fe=p.e.filter(e=>e.n&&e.d&&e.h);
+    $("#warns").innerHTML=pairs.map(([a,b])=>`<div class="warn">"${esc(fe[a].n)}" y "${esc(fe[b].n)}" coinciden en horario. Es normal en un plan de varias aperturas: tus amigos podrán elegir una.</div>`).join("")};
+  $("#app").addEventListener("input",sync);sync();
+  $("#addEv").onclick=()=>{sync();p.e.push(blankEv());editView()};
+  document.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{sync();p.e.splice(+b.dataset.rm,1);editView()});
+  $("#cancel").onclick=()=>{draft=null;location.hash=""};
+  $("#done").onclick=()=>{sync();
+    if(!p.t.trim())return toast("Falta el nombre del plan");
+    if(!p.o.trim())return toast("Falta tu nombre");
+    const bad=p.e.findIndex(e=>!e.n.trim()||!e.d||!e.h);
+    if(bad>=0)return toast("Apertura "+(bad+1)+": falta nombre, día u hora");
+    p.e=p.e.map(e=>{const o={n:e.n.trim(),s:e.s.trim(),d:e.d,h:e.h};if(e.f)o.f=e.f;if(/^https?:\/\//i.test(e.u.trim()))o.u=e.u.trim();return o});
+    p.t=p.t.trim();p.o=p.o.trim();if(!p.m.p.trim())delete p.m;else p.m={p:p.m.p.trim(),h:p.m.h};
+    plans[p.id]={plan:p,votes:{},at:Date.now()};save();draft=null;location.hash="#plan="+p.id};
+}
+
+/* ---------- friend vote view ---------- */
+function voteView(p){
+  const key="vc.my."+p.id;const my=LS.get(key,{name:"",v:p.e.map(()=>"-")});
+  if(my.v.length!==p.e.length)my.v=p.e.map(()=>"-");
+  const pairs=overlapPairs(p.e);
+  $("#app").innerHTML=`
+  <h2>${esc(p.t)}</h2><p class="mute">Plan de ${esc(p.o)}. Marca qué te apetece y pásale tu voto por el grupo.</p>
+  ${p.m?`<div class="card"><b>Quedada previa:</b> ${esc(p.m.p)}${p.m.h?" a las "+esc(p.m.h):""}</div>`:""}
+  ${pairs.length?`<div class="warn">Ojo: ${pairs.map(([a,b])=>`"${esc(p.e[a].n)}" y "${esc(p.e[b].n)}"`).join("; ")} coinciden en horario. Puedes votar "voy" a las dos y decidís en el grupo.</div>`:""}
+  <label>Tu nombre</label><input id="nm" value="${esc(my.name)}" placeholder="Ana">
+  <div id="opts"></div>
+  <div class="card"><h3>Tu voto</h3><pre id="msg"></pre>
+  <div class="row"><button class="primary" id="cp">Copiar mi voto</button><a class="btn" id="wa" target="_blank" rel="noopener">Elegir chat en WhatsApp</a><button id="sh">Compartir...</button></div>
+  <p class="mute">Pega el mensaje en el grupo. Quien creó el plan lo recoge en su app. Esta página no envía nada por sí sola.</p></div>
+  <div class="row"><button class="ghost" id="org">Soy quien creó el plan: abrir mi versión</button></div>`;
+  const opts=$("#opts");
+  const L={v:"Voy",q:"Quizá",p:"Paso"};
+  const draw=()=>{opts.innerHTML=p.e.map((e,i)=>`<div class="card"><b>${i+1}. ${esc(e.n)}</b><div class="mute">${esc(e.s)}${e.s?" · ":""}${esc(fmtD(e.d))} ${esc(e.h)}${e.f?"-"+esc(e.f):""}${e.u?` · <a href="${esc(e.u)}" target="_blank" rel="noopener noreferrer">ver</a>`:""}</div>
+    <div class="seg">${["v","q","p"].map(k=>`<button data-i="${i}" data-k="${k}" class="${my.v[i]===k?"on-"+k:""}">${L[k]}</button>`).join("")}</div></div>`).join("");
+    opts.querySelectorAll("button").forEach(b=>b.onclick=()=>{const i=+b.dataset.i;my.v[i]=my.v[i]===b.dataset.k?"-":b.dataset.k;LS.set(key,my);draw();msg()})};
+  const msg=()=>{my.name=$("#nm").value.replace(/[~\n]/g," ").trim();LS.set(key,my);
+    const w={v:"voy",q:"quizá",p:"paso","-":"sin voto"};
+    const t=`Mi voto en «${p.t}»${my.name?" ("+my.name+")":""}:\n`+p.e.map((e,i)=>`${i+1}. ${e.n}: ${w[my.v[i]]}`).join("\n")+`\nVC1~${p.id}~${my.name||"?"}~${my.v.join("")}`;
+    $("#msg").textContent=t;$("#wa").href=wa(t);return t};
+  draw();msg();$("#nm").oninput=msg;
+  $("#cp").onclick=()=>{if(!my.name)return toast("Pon tu nombre primero");copy(msg())};
+  $("#sh").onclick=()=>{if(!my.name)return toast("Pon tu nombre primero");share(msg())};
+  $("#org").onclick=()=>{if(!plans[p.id])plans[p.id]={plan:p,votes:{},at:Date.now()};save();location.hash="#plan="+p.id};
+}
+
+/* ---------- organizer view ---------- */
+function parseVotes(text,pl){
+  const re=/VC1~([^~\s]+)~([^~\n]+)~([vqp-]+)/g;let m,ok=0,other=0,bad=0;const out={};
+  while((m=re.exec(text))){if(m[1]!==pl.id){other++;continue}if(m[3].length!==pl.e.length){bad++;continue}out[m[2].trim()]=m[3];ok++}
+  return{out,ok,other,bad};
+}
+function orgView(id){
+  const rec=plans[id];const p=rec.plan;rec.votes=rec.votes||{};
+  const names=Object.keys(rec.votes);
+  const sc=p.e.map((e,i)=>{let v=0,q=0,pp=0;const who={v:[],q:[]};names.forEach(n=>{const c=rec.votes[n][i];if(c==="v"){v++;who.v.push(n)}else if(c==="q"){q++;who.q.push(n)}else if(c==="p")pp++});return{i,v,q,p:pp,s:2*v+q,who}});
+  // selection: manual override or greedy non-overlapping by score
+  let sel=rec.sel;
+  if(!sel){const ord=sc.filter(x=>x.s>0).sort((a,b)=>b.s-a.s||(p.e[a.i].d+p.e[a.i].h).localeCompare(p.e[b.i].d+p.e[b.i].h));sel=[];ord.forEach(x=>{if(!sel.some(j=>overlaps(p.e[j],p.e[x.i])))sel.push(x.i)})}
+  const chosen=[...sel].sort((a,b)=>(p.e[a].d+p.e[a].h).localeCompare(p.e[b].d+p.e[b].h));
+  const chosenPairs=overlapPairs(chosen.map(i=>p.e[i]));
+  const link=linkFor(p);
+  const invite=`Vernissage Club: «${p.t}»\nPropongo ${p.e.length} aperturas. Mira y vota aquí (2 min):\n${link}\nDespués copia tu voto y pégalo en el grupo.`;
+  const finalTxt=`Plan final: «${p.t}»\n`+(chosen.length?chosen.map((i,k)=>evLine(p.e[i],k)+(p.e[i].u?"\n   "+p.e[i].u:"")).join("\n"):"(sin aperturas elegidas)")+(p.m?`\nQuedada previa: ${p.m.p}${p.m.h?" a las "+p.m.h:""}`:"")+(chosen.length?`\nSe apuntan: ${[...new Set(chosen.flatMap(i=>sc[i].who.v))].join(", ")||"nadie aún"}`:"");
+  $("#app").innerHTML=`
+  <h2>${esc(p.t)}</h2><p class="mute">${p.e.length} aperturas · ${names.length} voto${names.length===1?"":"s"} recibido${names.length===1?"":"s"}</p>
+  <div class="card"><h3>1. Comparte el plan</h3><pre>${esc(invite)}</pre>
+  <div class="row"><button class="primary" id="cpI">Copiar invitación</button><a class="btn" target="_blank" rel="noopener" href="${esc(wa(invite))}">Elegir chat en WhatsApp</a><button id="shI">Compartir...</button></div>
+  <p class="mute">El enlace lleva el plan dentro. Si lo editas, vuelve a compartir el enlace nuevo.</p></div>
+  <div class="card"><h3>2. Recoge los votos</h3>
+  <p class="mute">Cuando tus amigos peguen su voto en el grupo, copia esos mensajes (varios a la vez vale) y pégalos aquí. Se lee la línea que empieza por VC1.</p>
+  <textarea id="paste" rows="4" placeholder="Pega aquí los mensajes de voto"></textarea>
+  <div class="row" style="margin-top:8px"><button class="primary" id="addV">Añadir votos</button>${names.length?'<button class="ghost danger" id="clrV">Vaciar votos</button>':""}</div>
+  <div id="pmsg"></div>
+  ${names.length?`<p class="mute">Han votado: ${names.map(esc).join(", ")}</p>`:""}</div>
+  <div class="card"><h3>3. Resultado</h3>
+  ${p.e.map((e,i)=>{const x=sc[i];const tot=Math.max(1,names.length);return`<div style="margin:10px 0"><div class="row" style="justify-content:space-between"><b>${i+1}. ${esc(e.n)}</b><span class="tag">${x.s} pts</span></div><div class="mute">${esc(e.s)}${e.s?" · ":""}${esc(fmtD(e.d))} ${esc(e.h)}${e.f?"-"+esc(e.f):""}</div>
+   <div class="bar"><i style="width:${x.v/tot*100}%;background:var(--green)"></i><i style="width:${x.q/tot*100}%;background:var(--amber)"></i><i style="width:${x.p/tot*100}%;background:#6a4a4f"></i></div>
+   <div class="mute">Voy: ${x.v} ${x.who.v.length?"("+x.who.v.map(esc).join(", ")+")":""} · Quizá: ${x.q} · Paso: ${x.p}</div>
+   <label style="display:flex;gap:8px;align-items:center;color:var(--text)"><input type="checkbox" data-sel="${i}" style="width:22px;min-height:22px" ${sel.includes(i)?"checked":""}> Incluir en el plan final</label></div>`}).join("")}
+  <p class="mute">Puntos: voy = 2, quizá = 1, paso = 0. La propuesta elige primero lo más votado y descarta lo que solapa; tú decides marcando o desmarcando.</p></div>
+  <div class="card"><h3>4. Plan final</h3>
+  ${chosenPairs.length?`<div class="warn">Hay aperturas elegidas que solapan en horario. Revisa si quieres pasar por las dos de forma breve.</div>`:(chosen.length?`<div class="ok">Sin solapamientos entre las aperturas elegidas.</div>`:"")}
+  <pre>${esc(finalTxt)}</pre>
+  <div class="row"><button class="primary" id="cpF">Copiar plan final</button><a class="btn" target="_blank" rel="noopener" href="${esc(wa(finalTxt))}">Elegir chat en WhatsApp</a><button id="ics">Descargar calendario (.ics)</button></div></div>
+  <div class="row"><button class="ghost danger" id="del">Borrar este plan</button></div>`;
+  $("#cpI").onclick=()=>copy(invite);$("#shI").onclick=()=>share(invite);$("#cpF").onclick=()=>copy(finalTxt);
+  $("#addV").onclick=()=>{const r=parseVotes($("#paste").value,p);Object.assign(rec.votes,r.out);if(r.ok){delete rec.sel}save();
+    if(!r.ok&&!r.other&&!r.bad){$("#pmsg").innerHTML='<div class="warn">No encuentro ningún voto en ese texto. Copia el mensaje completo, incluida la línea VC1.</div>';return}
+    orgView(id);const msg=[];if(r.ok)msg.push(r.ok+" voto(s) añadido(s)");if(r.other)msg.push(r.other+" de otro plan, ignorado(s)");if(r.bad)msg.push(r.bad+" no coincide(n) con el número de aperturas, ignorado(s)");toast(msg.join(". "))};
+  const c=$("#clrV");if(c)c.onclick=()=>{if(confirm("¿Vaciar todos los votos?")){rec.votes={};delete rec.sel;save();orgView(id)}};
+  document.querySelectorAll("[data-sel]").forEach(b=>b.onchange=()=>{const cur=new Set(rec.sel||sel);b.checked?cur.add(+b.dataset.sel):cur.delete(+b.dataset.sel);rec.sel=[...cur];save();orgView(id)});
+  $("#del").onclick=()=>{if(confirm("¿Borrar este plan y sus votos de este navegador?")){delete plans[id];save();location.hash=""}};
+  $("#ics").onclick=()=>{if(!chosen.length)return toast("No hay aperturas elegidas");
+    const z=n=>String(n).padStart(2,"0");const f=(d,h)=>d.replace(/-/g,"")+"T"+h.replace(":","")+"00";const icsEsc=s=>String(s).replace(/([,;\\])/g,"\\$1").replace(/\n/g,"\\n");
+    const lines=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Vernissage Club//ES","CALSCALE:GREGORIAN"];
+    chosen.forEach(i=>{const e=p.e[i];const em=endMin(e);const end=z(Math.floor(em/60)%24)+":"+z(em%60);
+      lines.push("BEGIN:VEVENT","UID:"+p.id+"-"+i+"@vernissage-club","DTSTAMP:"+new Date().toISOString().replace(/[-:]/g,"").slice(0,15)+"Z","DTSTART;TZID=Europe/Madrid:"+f(e.d,e.h),"DTEND;TZID=Europe/Madrid:"+f(e.d,end),"SUMMARY:"+icsEsc(e.n),"LOCATION:"+icsEsc(e.s||""),"DESCRIPTION:"+icsEsc(p.t+(e.u?" - "+e.u:"")),"END:VEVENT")});
+    lines.push("END:VCALENDAR");
+    const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([lines.join("\r\n")],{type:"text/calendar"}));a.download="vernissage-club.ics";document.body.appendChild(a);a.click();a.remove()};
+}
+
+/* ---------- guide ---------- */
+const STEPS=[
+ ["Qué es","Vernissage Club sirve para decidir con tus amigos a qué inauguraciones ir, en vez de dejar planes sueltos en el grupo. Propones entre 2 y 5 aperturas y el grupo vota."],
+ ["1. Crea el plan","Pulsa «Nuevo plan», añade las aperturas con día y hora y, si quieres, una quedada previa. Si dos coinciden en horario, la app te avisa."],
+ ["2. Comparte el enlace","Copia la invitación y pégala en tu grupo de WhatsApp o Telegram. El enlace lleva el plan dentro: tus amigos no necesitan cuenta ni instalar nada."],
+ ["3. Cada amigo vota","Abre el enlace, pone su nombre y marca Voy, Quizá o Paso. Pulsa «Copiar mi voto» y lo pega en el grupo."],
+ ["4. Recoge los votos","Los votos NO viajan solos (no hay servidor). Copia los mensajes de voto del grupo y pégalos en tu plan. Puedes pegar varios a la vez."],
+ ["5. Plan final","La app suma puntos, propone un recorrido sin solapamientos y genera el mensaje final y un archivo de calendario. Tú decides marcando o desmarcando."],
+ ["En el móvil","En Android, abre la web en Chrome, menú ⋮ y «Añadir a pantalla de inicio». Los planes se guardan solo en este navegador: si borras los datos del navegador, se pierden (el enlace compartido sigue valiendo)."]];
+function guide(i=0){
+  const [t,b]=STEPS[i];
+  $("#modal").innerHTML=`<div class="modal"><div><div class="mute">Guía ${i+1} de ${STEPS.length}</div><h2>${t}</h2><p>${b}</p><div class="row" style="justify-content:space-between;margin-top:14px"><button class="ghost" id="gx">Cerrar</button><div class="row">${i>0?'<button id="gp">Atrás</button>':""}<button class="primary" id="gn">${i<STEPS.length-1?"Siguiente":"Entendido"}</button></div></div></div></div>`;
+  $("#gx").onclick=close;$("#gn").onclick=()=>i<STEPS.length-1?guide(i+1):close();const g=$("#gp");if(g)g.onclick=()=>guide(i-1);
+  function close(){$("#modal").innerHTML="";LS.set("vc.guide",1)}
+}
+$("#guideBtn").onclick=()=>guide(0);
+if(!LS.get("vc.guide",0)&&!location.hash.startsWith("#p="))guide(0);
+route();
+</script>
+</body>
+</html>
